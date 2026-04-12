@@ -15,7 +15,7 @@ function StatusBadge({ status }) {
   const { cls, label, icon: Icon } = map[status] || map.clear;
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${cls}`}>
-      <Icon size={12} /> {label}
+      <Icon size={12} aria-hidden="true" /> {label}
     </span>
   );
 }
@@ -50,18 +50,20 @@ export default function HomePage({ user, venueId }) {
 
   return (
     <div className="pb-20">
-      {/* Header */}
-      <div className="bg-gradient-to-br from-blue-600 to-blue-800 text-white px-4 pt-12 pb-6">
+      {/* Accessible Header */}
+      <header className="bg-gradient-to-br from-blue-600 to-blue-800 text-white px-4 pt-12 pb-6">
         <p className="text-blue-200 text-sm">Welcome back</p>
-        <h1 className="text-2xl font-bold">{user.displayName || 'Fan'} 👋</h1>
+        <h1 className="text-2xl font-bold">{user.displayName || 'Fan'} <span aria-hidden="true">👋</span></h1>
         <p className="text-blue-200 text-sm mt-1 flex items-center gap-1">
-          <MapPin size={13} /> Stadium Arena · Gate 3
+          <MapPin size={13} aria-hidden="true" /> Stadium Arena · Gate 3
         </p>
-      </div>
+      </header>
 
-      <div className="px-4 -mt-4 space-y-4">
-        {/* Quick actions */}
-        <div className="bg-white rounded-2xl shadow-sm p-4 grid grid-cols-2 gap-3">
+      {/* Main Content Area */}
+      <main className="px-4 -mt-4 space-y-4">
+        
+        {/* Quick actions with semantic nav tag */}
+        <nav aria-label="Quick Actions" className="bg-white rounded-2xl shadow-sm p-4 grid grid-cols-2 gap-3">
           {[
             { label: 'Venue Map',    icon: MapPin,        to: '/map',   color: 'bg-blue-50 text-blue-600'   },
             { label: 'Join Queue',   icon: Clock,         to: '/queue', color: 'bg-green-50 text-green-600' },
@@ -69,34 +71,38 @@ export default function HomePage({ user, venueId }) {
             { label: 'Alerts',       icon: Bell,          to: '/me',    color: 'bg-purple-50 text-purple-600' },
           ].map(({ label, icon: Icon, to, color }) => (
             <Link key={label} to={to}
+              aria-label={label}
               className={`flex flex-col items-center gap-2 p-4 rounded-xl ${color} font-medium text-sm transition-transform active:scale-95`}>
-              <Icon size={24} />
+              <Icon size={24} aria-hidden="true" />
               {label}
             </Link>
           ))}
-        </div>
+        </nav>
 
-        {/* Active Alerts */}
+        {/* Active Alerts - Assertive live region */}
         {alerts.length > 0 && (
-          <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
+          <section className="bg-red-50 border border-red-200 rounded-2xl p-4" aria-live="assertive" role="alert">
             <h3 className="font-semibold text-red-800 flex items-center gap-2 mb-2">
-              <AlertTriangle size={16} /> Active Alerts
+              <AlertTriangle size={16} aria-hidden="true" /> Active Alerts
             </h3>
             {alerts.map(a => (
               <p key={a.id} className="text-sm text-red-700 py-1 border-b border-red-100 last:border-0">
                 {a.message || a.severity}
               </p>
             ))}
-          </div>
+          </section>
         )}
 
-        {/* Zone Status */}
-        <div className="bg-white rounded-2xl shadow-sm p-4">
+        {/* Zone Status - Polite live region */}
+        <section className="bg-white rounded-2xl shadow-sm p-4" aria-live="polite" aria-busy={loading}>
           <h2 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-            <Activity size={16} className="text-blue-600" /> Live Zone Status
+            <Activity size={16} className="text-blue-600" aria-hidden="true" /> Live Zone Status
           </h2>
           {loading ? (
-            <p className="text-gray-400 text-sm">Loading crowd data…</p>
+            <>
+              <p className="text-gray-400 text-sm" aria-hidden="true">Loading crowd data…</p>
+              <span className="sr-only">Loading live zone status...</span>
+            </>
           ) : zones.length === 0 ? (
             <p className="text-gray-400 text-sm">No zones available</p>
           ) : (
@@ -114,16 +120,19 @@ export default function HomePage({ user, venueId }) {
               ))}
             </div>
           )}
-        </div>
+        </section>
 
-        {/* Predicted arrival tip */}
-        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
-          <h3 className="font-semibold text-blue-800 mb-1">💡 Smart Tip</h3>
+        {/* Predicted arrival tip - Semantic aside */}
+        <aside className="bg-blue-50 border border-blue-200 rounded-2xl p-4" aria-label="Smart Tip">
+          <h3 className="font-semibold text-blue-800 mb-1 flex items-center gap-1">
+            <span aria-hidden="true">💡</span> Smart Tip
+          </h3>
           <p className="text-sm text-blue-700">
             Gate 7 is currently clear. Using Gate 7 instead of Gate 3 saves ~8 minutes of wait time.
           </p>
-        </div>
-      </div>
+        </aside>
+
+      </main>
     </div>
   );
 }
