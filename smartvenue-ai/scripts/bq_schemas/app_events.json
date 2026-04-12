@@ -1,0 +1,11 @@
+[
+  {"name": "event_id",      "type": "STRING",    "mode": "REQUIRED", "description": "Unique event identifier (UUID)"},
+  {"name": "event_type",    "type": "STRING",    "mode": "REQUIRED", "description": "Type: gps_update | gate_checkin | queue_join | queue_leave | order_placed | zone_report"},
+  {"name": "venue_id",      "type": "STRING",    "mode": "REQUIRED", "description": "Venue document ID"},
+  {"name": "attendee_uid",  "type": "STRING",    "mode": "NULLABLE", "description": "Anonymised Firebase UID (SHA-256 truncated to 16 chars)"},
+  {"name": "zone_id",       "type": "STRING",    "mode": "NULLABLE", "description": "Zone involved in this event"},
+  {"name": "payload",       "type": "JSON",      "mode": "NULLABLE", "description": "Event-specific payload as JSON string"},
+  {"name": "client_ts",     "type": "TIMESTAMP", "mode": "NULLABLE", "description": "Client-side event timestamp"},
+  {"name": "server_ts",     "type": "TIMESTAMP", "mode": "REQUIRED", "description": "Server ingestion timestamp"},
+  {"name": "date",          "type": "DATE",      "mode": "REQUIRED", "description": "Partition column (derived from server_ts)"}
+]

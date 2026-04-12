@@ -1,0 +1,321 @@
+# =============================================================================
+# SmartVenue AI — Cloud Build CI/CD Pipeline
+# Triggered on push to `main` branch.
+#
+# Substitutions required (set in Cloud Build trigger or --substitutions flag):
+#   _PROJECT_ID   — GCP project ID
+#   _REGION       — e.g. asia-south1
+#   _REGISTRY     — Artifact Registry host, e.g. asia-south1-docker.pkg.dev
+#   _REPO         — Artifact Registry repo name, e.g. smartvenue
+#   _SA_EMAIL     — Cloud Run service account email
+# =============================================================================
+
+substitutions:
+  _PROJECT_ID: "your-gcp-project-id"
+  _REGION: "asia-south1"
+  _REGISTRY: "asia-south1-docker.pkg.dev"
+  _REPO: "smartvenue"
+  _SA_EMAIL: "smartvenue-sa@your-gcp-project-id.iam.gserviceaccount.com"
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8
+
+steps:
+  # ── 1. Build all service images in parallel ──────────────────────────────────
+  - id: build-attendee-api
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - "${_REGISTRY}/${_PROJECT_ID}/${_REPO}/attendee-api:$SHORT_SHA"
+      - -t
+      - "${_REGISTRY}/${_PROJECT_ID}/${_REPO}/attendee-api:latest"
+      - services/attendee-api
+    waitFor: ["-"]
+
+  - id: build-queue-service
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - "${_REGISTRY}/${_PROJECT_ID}/${_REPO}/queue-service:$SHORT_SHA"
+      - -t
+      - "${_REGISTRY}/${_PROJECT_ID}/${_REPO}/queue-service:latest"
+      - services/queue-service
+    waitFor: ["-"]
+
+  - id: build-crowd-service
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - "${_REGISTRY}/${_PROJECT_ID}/${_REPO}/crowd-service:$SHORT_SHA"
+      - -t
+      - "${_REGISTRY}/${_PROJECT_ID}/${_REPO}/crowd-service:latest"
+      - services/crowd-service
+    waitFor: ["-"]
+
+  - id: build-order-service
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - "${_REGISTRY}/${_PROJECT_ID}/${_REPO}/order-service:$SHORT_SHA"
+      - -t
+      - "${_REGISTRY}/${_PROJECT_ID}/${_REPO}/order-service:latest"
+      - services/order-service
+    waitFor: ["-"]
+
+  - id: build-staff-service
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - "${_REGISTRY}/${_PROJECT_ID}/${_REPO}/staff-service:$SHORT_SHA"
+      - -t
+      - "${_REGISTRY}/${_PROJECT_ID}/${_REPO}/staff-service:latest"
+      - services/staff-service
+    waitFor: ["-"]
+
+  - id: build-notification-service
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - "${_REGISTRY}/${_PROJECT_ID}/${_REPO}/notification-service:$SHORT_SHA"
+      - -t
+      - "${_REGISTRY}/${_PROJECT_ID}/${_REPO}/notification-service:latest"
+      - services/notification-service
+    waitFor: ["-"]
+
+  - id: build-analytics-service
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - "${_REGISTRY}/${_PROJECT_ID}/${_REPO}/analytics-service:$SHORT_SHA"
+      - -t
+      - "${_REGISTRY}/${_PROJECT_ID}/${_REPO}/analytics-service:latest"
+      - services/analytics-service
+    waitFor: ["-"]
+
+  # ── 2. Build frontend apps in parallel ──────────────────────────────────────
+  - id: build-attendee-app
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - "${_REGISTRY}/${_PROJECT_ID}/${_REPO}/attendee-app:$SHORT_SHA"
+      - -t
+      - "${_REGISTRY}/${_PROJECT_ID}/${_REPO}/attendee-app:latest"
+      - apps/attendee-app
+    waitFor: ["-"]
+
+  - id: build-staff-app
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - "${_REGISTRY}/${_PROJECT_ID}/${_REPO}/staff-app:$SHORT_SHA"
+      - -t
+      - "${_REGISTRY}/${_PROJECT_ID}/${_REPO}/staff-app:latest"
+      - apps/staff-app
+    waitFor: ["-"]
+
+  - id: build-ops-dashboard
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - "${_REGISTRY}/${_PROJECT_ID}/${_REPO}/ops-dashboard:$SHORT_SHA"
+      - -t
+      - "${_REGISTRY}/${_PROJECT_ID}/${_REPO}/ops-dashboard:latest"
+      - apps/ops-dashboard
+    waitFor: ["-"]
+
+  # ── 3. Push all images ───────────────────────────────────────────────────────
+  - id: push-all
+    name: gcr.io/cloud-builders/docker
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        for SVC in attendee-api queue-service crowd-service order-service \
+                   staff-service notification-service analytics-service \
+                   attendee-app staff-app ops-dashboard; do
+          docker push "${_REGISTRY}/${_PROJECT_ID}/${_REPO}/$${SVC}:$SHORT_SHA"
+          docker push "${_REGISTRY}/${_PROJECT_ID}/${_REPO}/$${SVC}:latest"
+        done
+    waitFor:
+      - build-attendee-api
+      - build-queue-service
+      - build-crowd-service
+      - build-order-service
+      - build-staff-service
+      - build-notification-service
+      - build-analytics-service
+      - build-attendee-app
+      - build-staff-app
+      - build-ops-dashboard
+
+  # ── 4. Deploy backend services to Cloud Run ─────────────────────────────────
+  - id: deploy-attendee-api
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - attendee-api
+      - --image=${_REGISTRY}/${_PROJECT_ID}/${_REPO}/attendee-api:$SHORT_SHA
+      - --region=${_REGION}
+      - --platform=managed
+      - --service-account=${_SA_EMAIL}
+      - --allow-unauthenticated
+      - --quiet
+    waitFor: [push-all]
+
+  - id: deploy-queue-service
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - queue-service
+      - --image=${_REGISTRY}/${_PROJECT_ID}/${_REPO}/queue-service:$SHORT_SHA
+      - --region=${_REGION}
+      - --platform=managed
+      - --service-account=${_SA_EMAIL}
+      - --allow-unauthenticated
+      - --quiet
+    waitFor: [push-all]
+
+  - id: deploy-crowd-service
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - crowd-service
+      - --image=${_REGISTRY}/${_PROJECT_ID}/${_REPO}/crowd-service:$SHORT_SHA
+      - --region=${_REGION}
+      - --platform=managed
+      - --service-account=${_SA_EMAIL}
+      - --allow-unauthenticated
+      - --quiet
+    waitFor: [push-all]
+
+  - id: deploy-order-service
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - order-service
+      - --image=${_REGISTRY}/${_PROJECT_ID}/${_REPO}/order-service:$SHORT_SHA
+      - --region=${_REGION}
+      - --platform=managed
+      - --service-account=${_SA_EMAIL}
+      - --allow-unauthenticated
+      - --quiet
+    waitFor: [push-all]
+
+  - id: deploy-staff-service
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - staff-service
+      - --image=${_REGISTRY}/${_PROJECT_ID}/${_REPO}/staff-service:$SHORT_SHA
+      - --region=${_REGION}
+      - --platform=managed
+      - --service-account=${_SA_EMAIL}
+      - --allow-unauthenticated
+      - --quiet
+    waitFor: [push-all]
+
+  - id: deploy-notification-service
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - notification-service
+      - --image=${_REGISTRY}/${_PROJECT_ID}/${_REPO}/notification-service:$SHORT_SHA
+      - --region=${_REGION}
+      - --platform=managed
+      - --service-account=${_SA_EMAIL}
+      - --no-allow-unauthenticated
+      - --quiet
+    waitFor: [push-all]
+
+  - id: deploy-analytics-service
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - analytics-service
+      - --image=${_REGISTRY}/${_PROJECT_ID}/${_REPO}/analytics-service:$SHORT_SHA
+      - --region=${_REGION}
+      - --platform=managed
+      - --service-account=${_SA_EMAIL}
+      - --no-allow-unauthenticated
+      - --quiet
+    waitFor: [push-all]
+
+  # ── 5. Deploy frontend apps to Cloud Run ────────────────────────────────────
+  - id: deploy-attendee-app
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - attendee-app
+      - --image=${_REGISTRY}/${_PROJECT_ID}/${_REPO}/attendee-app:$SHORT_SHA
+      - --region=${_REGION}
+      - --platform=managed
+      - --allow-unauthenticated
+      - --quiet
+    waitFor: [push-all]
+
+  - id: deploy-staff-app
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - staff-app
+      - --image=${_REGISTRY}/${_PROJECT_ID}/${_REPO}/staff-app:$SHORT_SHA
+      - --region=${_REGION}
+      - --platform=managed
+      - --allow-unauthenticated
+      - --quiet
+    waitFor: [push-all]
+
+  - id: deploy-ops-dashboard
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ops-dashboard
+      - --image=${_REGISTRY}/${_PROJECT_ID}/${_REPO}/ops-dashboard:$SHORT_SHA
+      - --region=${_REGION}
+      - --platform=managed
+      - --allow-unauthenticated
+      - --quiet
+    waitFor: [push-all]
+
+images:
+  - "${_REGISTRY}/${_PROJECT_ID}/${_REPO}/attendee-api:$SHORT_SHA"
+  - "${_REGISTRY}/${_PROJECT_ID}/${_REPO}/queue-service:$SHORT_SHA"
+  - "${_REGISTRY}/${_PROJECT_ID}/${_REPO}/crowd-service:$SHORT_SHA"
+  - "${_REGISTRY}/${_PROJECT_ID}/${_REPO}/order-service:$SHORT_SHA"
+  - "${_REGISTRY}/${_PROJECT_ID}/${_REPO}/staff-service:$SHORT_SHA"
+  - "${_REGISTRY}/${_PROJECT_ID}/${_REPO}/notification-service:$SHORT_SHA"
+  - "${_REGISTRY}/${_PROJECT_ID}/${_REPO}/analytics-service:$SHORT_SHA"
+  - "${_REGISTRY}/${_PROJECT_ID}/${_REPO}/attendee-app:$SHORT_SHA"
+  - "${_REGISTRY}/${_PROJECT_ID}/${_REPO}/staff-app:$SHORT_SHA"
+  - "${_REGISTRY}/${_PROJECT_ID}/${_REPO}/ops-dashboard:$SHORT_SHA"

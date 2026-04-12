@@ -1,0 +1,11 @@
+[
+  {"name": "stat_id",         "type": "STRING",  "mode": "REQUIRED", "description": "UUID"},
+  {"name": "venue_id",        "type": "STRING",  "mode": "REQUIRED", "description": "Venue document ID"},
+  {"name": "amenity_id",      "type": "STRING",  "mode": "REQUIRED", "description": "Amenity (food stall / restroom) ID"},
+  {"name": "amenity_name",    "type": "STRING",  "mode": "NULLABLE", "description": "Human-readable amenity name"},
+  {"name": "queue_depth",     "type": "INTEGER", "mode": "REQUIRED", "description": "Number of people in queue at snapshot time"},
+  {"name": "avg_wait_secs",   "type": "INTEGER", "mode": "NULLABLE", "description": "Rolling average actual wait time (seconds)"},
+  {"name": "served_count",    "type": "INTEGER", "mode": "NULLABLE", "description": "Cumulative served count for today"},
+  {"name": "recorded_at",     "type": "TIMESTAMP","mode": "REQUIRED","description": "Snapshot timestamp"},
+  {"name": "date",            "type": "DATE",    "mode": "REQUIRED", "description": "Partition column"}
+]

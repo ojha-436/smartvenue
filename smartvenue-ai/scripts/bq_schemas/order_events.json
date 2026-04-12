@@ -1,0 +1,12 @@
+[
+  {"name": "order_id",       "type": "STRING",  "mode": "REQUIRED", "description": "Order UUID from Cloud SQL"},
+  {"name": "venue_id",       "type": "STRING",  "mode": "REQUIRED", "description": "Venue document ID"},
+  {"name": "amenity_id",     "type": "STRING",  "mode": "REQUIRED", "description": "Food stall / stand ID"},
+  {"name": "attendee_uid",   "type": "STRING",  "mode": "NULLABLE", "description": "Anonymised attendee UID"},
+  {"name": "event_type",     "type": "STRING",  "mode": "REQUIRED", "description": "order_placed | order_ready | order_collected | order_cancelled"},
+  {"name": "total_paise",    "type": "INTEGER", "mode": "NULLABLE", "description": "Order value in paise"},
+  {"name": "item_count",     "type": "INTEGER", "mode": "NULLABLE", "description": "Number of line items"},
+  {"name": "wait_secs",      "type": "INTEGER", "mode": "NULLABLE", "description": "Time from placed to ready (populated on order_ready event)"},
+  {"name": "event_ts",       "type": "TIMESTAMP","mode": "REQUIRED","description": "Event timestamp"},
+  {"name": "date",           "type": "DATE",    "mode": "REQUIRED", "description": "Partition column"}
+]
