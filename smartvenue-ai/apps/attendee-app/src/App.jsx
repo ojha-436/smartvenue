@@ -50,10 +50,6 @@ ProtectedRoute.propTypes = {
   user: PropTypes.object,
   children: PropTypes.node.isRequired,
 };
-ProtectedRoute.propTypes = {
-  user: PropTypes.object,
-  children: PropTypes.node.isRequired,
-};
 export default function App() {
   const [user,    setUser]    = useState(undefined);
   const [venueId, setVenueId] = useState(localStorage.getItem('venueId') || 'venue-001');
