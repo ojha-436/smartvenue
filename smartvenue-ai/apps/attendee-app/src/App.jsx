@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense, lazy } from 'react';
 import { Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import { onAuthStateChanged } from 'firebase/auth';
 import { Toaster } from 'react-hot-toast';
@@ -6,14 +6,14 @@ import { auth } from './firebase';
 import { Home, Map, ShoppingCart, Users, User } from 'lucide-react';
 import PropTypes from 'prop-types';
 import ErrorBoundary from './components/ErrorBoundary';
-import LoginPage    from './pages/LoginPage';
-import HomePage     from './pages/HomePage';
-import VenueMapPage from './pages/VenueMapPage';
-import QueuePage    from './pages/QueuePage';
-import OrderPage    from './pages/OrderPage';
-import ProfilePage  from './pages/ProfilePage';
-import CheckInPage  from './pages/CheckInPage';
 
+const LoginPage    = lazy(() => import('./pages/LoginPage'));
+const HomePage     = lazy(() => import('./pages/HomePage'));
+const VenueMapPage = lazy(() => import('./pages/VenueMapPage'));
+const QueuePage    = lazy(() => import('./pages/QueuePage'));
+const OrderPage    = lazy(() => import('./pages/OrderPage'));
+const ProfilePage  = lazy(() => import('./pages/ProfilePage'));
+const CheckInPage  = lazy(() => import('./pages/CheckInPage'));
 function NavBar() {
   const loc = useLocation();
   const tabs = [
@@ -73,17 +73,19 @@ export default function App() {
       <Toaster position="top-center" />
       <main className="max-w-md mx-auto min-h-screen relative">
       <ErrorBoundary>
-        <Routes>
-          <Route path="/login"   element={!user ? <LoginPage /> : <Navigate to="/home" />} />
-          <Route path="/checkin" element={<ProtectedRoute user={user}><CheckInPage venueId={venueId} /></ProtectedRoute>} />
-          <Route path="/home"    element={<ProtectedRoute user={user}><HomePage user={user} venueId={venueId} /></ProtectedRoute>} />
-          <Route path="/map"     element={<ProtectedRoute user={user}><VenueMapPage user={user} venueId={venueId} /></ProtectedRoute>} />
-          <Route path="/queue"   element={<ProtectedRoute user={user}><QueuePage user={user} venueId={venueId} /></ProtectedRoute>} />
-          <Route path="/order"   element={<ProtectedRoute user={user}><OrderPage user={user} venueId={venueId} /></ProtectedRoute>} />
-          <Route path="/me"      element={<ProtectedRoute user={user}><ProfilePage user={user} /></ProtectedRoute>} />
-          <Route path="*"        element={<Navigate to={user ? '/home' : '/login'} />} />
-        </Routes>
-        </ErrorBoundary>
+    <Suspense fallback={<div className="flex items-center justify-center h-screen"><div className="animate-spin rounded-full h-8 w-8 border-4 border-blue-600 border-t-transparent"></div></div>}>
+      <Routes>
+        <Route path="/login"   element={!user ? <LoginPage /> : <Navigate to="/home" />} />
+        <Route path="/checkin" element={<ProtectedRoute user={user}><CheckInPage venueId={venueId} /></ProtectedRoute>} />
+        <Route path="/home"    element={<ProtectedRoute user={user}><HomePage user={user} venueId={venueId} /></ProtectedRoute>} />
+        <Route path="/map"     element={<ProtectedRoute user={user}><VenueMapPage user={user} venueId={venueId} /></ProtectedRoute>} />
+        <Route path="/queue"   element={<ProtectedRoute user={user}><QueuePage user={user} venueId={venueId} /></ProtectedRoute>} />
+        <Route path="/order"   element={<ProtectedRoute user={user}><OrderPage user={user} venueId={venueId} /></ProtectedRoute>} />
+        <Route path="/me"      element={<ProtectedRoute user={user}><ProfilePage user={user} /></ProtectedRoute>} />
+        <Route path="*"        element={<Navigate to={user ? '/home' : '/login'} />} />
+      </Routes>
+    </Suspense>
+  </ErrorBoundary>
         {user && <NavBar />}
       </main>
     </>
