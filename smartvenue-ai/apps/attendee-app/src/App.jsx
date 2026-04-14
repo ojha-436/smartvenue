@@ -1,5 +1,3 @@
-import PropTypes from 'prop-types';
-import ErrorBoundary from './components/ErrorBoundary';
 import React, { useEffect, useState } from 'react';
 import { Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import { onAuthStateChanged } from 'firebase/auth';
