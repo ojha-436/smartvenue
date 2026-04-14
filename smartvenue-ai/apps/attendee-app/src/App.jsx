@@ -1,10 +1,13 @@
+import PropTypes from 'prop-types';
+import ErrorBoundary from './components/ErrorBoundary';
 import React, { useEffect, useState } from 'react';
 import { Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import { onAuthStateChanged } from 'firebase/auth';
 import { Toaster } from 'react-hot-toast';
 import { auth } from './firebase';
 import { Home, Map, ShoppingCart, Users, User } from 'lucide-react';
-
+import PropTypes from 'prop-types';
+import ErrorBoundary from './components/ErrorBoundary';
 import LoginPage    from './pages/LoginPage';
 import HomePage     from './pages/HomePage';
 import VenueMapPage from './pages/VenueMapPage';
@@ -45,7 +48,14 @@ function ProtectedRoute({ user, children }) {
   if (!user) return <Navigate to="/login" replace />;
   return children;
 }
-
+ProtectedRoute.propTypes = {
+  user: PropTypes.object,
+  children: PropTypes.node.isRequired,
+};
+ProtectedRoute.propTypes = {
+  user: PropTypes.object,
+  children: PropTypes.node.isRequired,
+};
 export default function App() {
   const [user,    setUser]    = useState(undefined);
   const [venueId, setVenueId] = useState(localStorage.getItem('venueId') || 'venue-001');
@@ -68,6 +78,7 @@ export default function App() {
     <>
       <Toaster position="top-center" />
       <main className="max-w-md mx-auto min-h-screen relative">
+      <ErrorBoundary>
         <Routes>
           <Route path="/login"   element={!user ? <LoginPage /> : <Navigate to="/home" />} />
           <Route path="/checkin" element={<ProtectedRoute user={user}><CheckInPage venueId={venueId} /></ProtectedRoute>} />
@@ -78,6 +89,7 @@ export default function App() {
           <Route path="/me"      element={<ProtectedRoute user={user}><ProfilePage user={user} /></ProtectedRoute>} />
           <Route path="*"        element={<Navigate to={user ? '/home' : '/login'} />} />
         </Routes>
+        </ErrorBoundary>
         {user && <NavBar />}
       </main>
     </>
