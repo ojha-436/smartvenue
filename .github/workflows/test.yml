@@ -1,0 +1,31 @@
+name: React CI Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - name: Install Dependencies
+        working-directory: ./apps/attendee-app
+        run: npm install
+
+      - name: Run Tests with Coverage
+        working-directory: ./apps/attendee-app
+        run: npm run test:coverage
+
+      - name: Verify Build
+        working-directory: ./apps/attendee-app
+        run: npm run build
