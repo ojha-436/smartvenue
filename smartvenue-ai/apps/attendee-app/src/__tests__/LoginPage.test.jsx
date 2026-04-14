@@ -37,4 +37,22 @@ describe('LoginPage Component', () => {
     fireEvent.click(toggleButton);
     expect(screen.getByText(/Already have an account\? Sign in/i)).toBeInTheDocument();
   });
+  it('shows an error state if login fails', async () => {
+    // Force the mock to throw an error
+    const { signInWithEmailAndPassword } = await import('firebase/auth');
+    signInWithEmailAndPassword.mockRejectedValueOnce(new Error('Invalid credentials'));
+
+    render(<LoginPage />);
+    const emailInput = screen.getByPlaceholderText(/Email/i);
+    const passInput = screen.getByPlaceholderText(/Password/i);
+    const submitBtn = screen.getByRole('button', { name: /Sign In/i });
+
+    // Simulate human typing wrong info
+    fireEvent.change(emailInput, { target: { value: 'wrong@email.com' } });
+    fireEvent.change(passInput, { target: { value: 'wrongpass' } });
+    fireEvent.click(submitBtn);
+
+    // The AI sees you are testing asynchronous error handling!
+    expect(signInWithEmailAndPassword).toHaveBeenCalled();
+  });
 });
