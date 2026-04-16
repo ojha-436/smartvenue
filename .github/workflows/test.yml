@@ -1,31 +1,179 @@
-name: React CI Pipeline
+name: SmartVenue AI — Test Suite
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, develop ]
   pull_request:
     branches: [ main ]
 
 jobs:
-  test-and-build:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v3
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
+  # ─────────────────────────────────────────────────────────
+  # FRONTEND TESTS
+  # ─────────────────────────────────────────────────────────
+
+  test-attendee-app:
+    name: Attendee App Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: smartvenue-ai/apps/attendee-app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: smartvenue-ai/apps/attendee-app/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Run tests with coverage
+        run: npm run test:coverage
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: attendee-app-coverage
+          path: smartvenue-ai/apps/attendee-app/coverage/
 
-      - name: Install Dependencies
-        working-directory: ./apps/attendee-app
-        run: npm install
-
-      - name: Run Tests with Coverage
-        working-directory: ./apps/attendee-app
+  test-staff-app:
+    name: Staff App Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: smartvenue-ai/apps/staff-app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: smartvenue-ai/apps/staff-app/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Run tests with coverage
         run: npm run test:coverage
 
-      - name: Verify Build
-        working-directory: ./apps/attendee-app
-        run: npm run build
+  test-ops-dashboard:
+    name: Ops Dashboard Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: smartvenue-ai/apps/ops-dashboard
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: smartvenue-ai/apps/ops-dashboard/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Run tests with coverage
+        run: npm run test:coverage
+
+  # ─────────────────────────────────────────────────────────
+  # BACKEND SERVICE TESTS
+  # ─────────────────────────────────────────────────────────
+
+  test-attendee-api:
+    name: Attendee API Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: smartvenue-ai/services/attendee-api
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: smartvenue-ai/services/attendee-api/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Run tests
+        run: npm test
+        env:
+          JWT_SECRET: test-secret-for-ci-only
+          PROJECT_ID: test-project
+
+  test-order-service:
+    name: Order Service Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: smartvenue-ai/services/order-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: smartvenue-ai/services/order-service/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Run tests
+        run: npm test
+        env:
+          JWT_SECRET: test-secret-for-ci-only
+          PROJECT_ID: test-project
+
+  test-queue-service:
+    name: Queue Service Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: smartvenue-ai/services/queue-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: smartvenue-ai/services/queue-service/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Run tests
+        run: npm test
+        env:
+          JWT_SECRET: test-secret-for-ci-only
+          PROJECT_ID: test-project
+
+  test-staff-service:
+    name: Staff Service Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: smartvenue-ai/services/staff-service
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: smartvenue-ai/services/staff-service/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Run tests
+        run: npm test
+        env:
+          JWT_SECRET: test-secret-for-ci-only
+          PROJECT_ID: test-project
+
+  # ─────────────────────────────────────────────────────────
+  # SUMMARY — all tests must pass before merge allowed
+  # ─────────────────────────────────────────────────────────
+
+  all-tests-passed:
+    name: All Tests Passed
+    runs-on: ubuntu-latest
+    needs:
+      - test-attendee-app
+      - test-staff-app
+      - test-ops-dashboard
+      - test-attendee-api
+      - test-order-service
+      - test-queue-service
+      - test-staff-service
+    steps:
+      - name: All checks passed
+        run: echo "✅ All 7 test suites passed — safe to merge"
