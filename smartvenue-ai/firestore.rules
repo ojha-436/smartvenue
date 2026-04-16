@@ -1,0 +1,95 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Venues: public read, no client write ──────────────────────────────────
+    match /venues/{venueId} {
+      allow read: if true;
+      allow write: if false;   // written only by backend services
+
+      // Zones: public read
+      match /zones/{zoneId} {
+        allow read: if true;
+        allow write: if false;
+      }
+
+      // Amenities: public read
+      match /amenities/{amenityId} {
+        allow read: if true;
+        allow write: if false;
+
+        // Menu items: public read
+        match /menuItems/{itemId} {
+          allow read: if true;
+          allow write: if false;
+        }
+
+        // Order queue: service-only (no client access)
+        match /orderQueue/{orderId} {
+          allow read, write: if false;
+        }
+      }
+
+      // Alerts: authenticated read, no client write
+      match /alerts/{alertId} {
+        allow read: if request.auth != null;
+        allow write: if false;
+      }
+
+      // Staff collection: restricted by role
+      match /staff/{staffId} {
+        // Staff can read their own data and manager can read all staff in their venue
+        allow read: if request.auth != null &&
+                       (request.auth.uid == staffId ||
+                        request.auth.token.role == 'manager');
+        allow write: if false;
+      }
+
+      // Tasks: authenticated staff with proper role
+      match /tasks/{taskId} {
+        allow read: if request.auth != null;
+        allow write: if false;
+      }
+
+      // Incidents: staff can read, service writes
+      match /incidents/{incidentId} {
+        allow read: if request.auth != null;
+        allow write: if false;
+      }
+    }
+
+    // ── Attendee profiles: own data only ──────────────────────────────────────
+    match /attendees/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // ── Virtual queues: authenticated read/write (join/leave) ─────────────────
+    match /venues/{venueId}/queues/{amenityId} {
+      allow read: if request.auth != null;
+      allow write: if false;   // mutations only via queue-service
+
+      match /entries/{entryId} {
+        allow read: if request.auth != null &&
+                       (resource.data.userId == request.auth.uid || request.auth.token.role == 'staff');
+        allow write: if false;
+      }
+    }
+
+    // ── Orders collection: authenticated read/write ────────────────────────────
+    match /orders/{orderId} {
+      allow read: if request.auth != null &&
+                     (resource.data.userId == request.auth.uid || request.auth.token.role == 'staff');
+      allow write: if false;  // mutations only via order-service
+    }
+
+    // ── Notifications: service-only ─────────────────────────────────────────────
+    match /notifications/{notificationId} {
+      allow read, write: if false;
+    }
+
+    // ── Everything else: deny ─────────────────────────────────────────────────
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

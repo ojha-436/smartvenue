@@ -1,0 +1,293 @@
+# SmartVenue AI — Cloud Build CI/CD Pipeline
+# Runs tests for all services and frontend apps, then builds and pushes Docker images
+# to Artifact Registry, and deploys to Cloud Run.
+#
+# Required substitutions:
+#   _REGION          : GCP region (e.g. us-central1)
+#   _REPO            : Artifact Registry repo name (e.g. smartvenue)
+#   _PROJECT_ID      : GCP project ID
+#   _ALLOWED_ORIGINS : Comma-separated list of frontend domains
+
+substitutions:
+  _REGION: us-central1
+  _REPO: smartvenue
+  _PROJECT_ID: $PROJECT_ID
+
+steps:
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # PHASE 1: TEST
+  # Run all service and frontend tests in parallel before building anything.
+  # The pipeline fails fast if any test suite fails.
+  # ─────────────────────────────────────────────────────────────────────────────
+
+  # 1a. Test attendee-api (Node)
+  - name: 'node:20-alpine'
+    id: test-attendee-api
+    dir: services/attendee-api
+    entrypoint: sh
+    args:
+      - -c
+      - |
+        npm ci && npx vitest run --reporter=verbose
+    waitFor: ['-']
+
+  # 1b. Test order-service (Node)
+  - name: 'node:20-alpine'
+    id: test-order-service
+    dir: services/order-service
+    entrypoint: sh
+    args:
+      - -c
+      - |
+        npm ci && npx vitest run --reporter=verbose
+    waitFor: ['-']
+
+  # 1c. Test queue-service (Node)
+  - name: 'node:20-alpine'
+    id: test-queue-service
+    dir: services/queue-service
+    entrypoint: sh
+    args:
+      - -c
+      - |
+        npm ci && npx vitest run --reporter=verbose
+    waitFor: ['-']
+
+  # 1d. Test staff-service (Node)
+  - name: 'node:20-alpine'
+    id: test-staff-service
+    dir: services/staff-service
+    entrypoint: sh
+    args:
+      - -c
+      - |
+        npm ci && npx vitest run --reporter=verbose
+    waitFor: ['-']
+
+  # 1e. Test attendee-app (React/Vite)
+  - name: 'node:20-alpine'
+    id: test-attendee-app
+    dir: apps/attendee-app
+    entrypoint: sh
+    args:
+      - -c
+      - |
+        npm ci && npx vitest run --reporter=verbose
+    waitFor: ['-']
+
+  # 1f. Test staff-app (React/Vite)
+  - name: 'node:20-alpine'
+    id: test-staff-app
+    dir: apps/staff-app
+    entrypoint: sh
+    args:
+      - -c
+      - |
+        npm ci && npx vitest run --reporter=verbose
+    waitFor: ['-']
+
+  # 1g. Test ops-dashboard (React/Vite)
+  - name: 'node:20-alpine'
+    id: test-ops-dashboard
+    dir: apps/ops-dashboard
+    entrypoint: sh
+    args:
+      - -c
+      - |
+        npm ci && npx vitest run --reporter=verbose
+    waitFor: ['-']
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # PHASE 2: BUILD — only starts after ALL tests pass
+  # ─────────────────────────────────────────────────────────────────────────────
+
+  # 2a. Build attendee-app image
+  - name: 'gcr.io/cloud-builders/docker'
+    id: build-attendee-app
+    args:
+      - build
+      - -t
+      - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/attendee-app:${SHORT_SHA}'
+      - -t
+      - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/attendee-app:latest'
+      - apps/attendee-app
+    waitFor:
+      - test-attendee-app
+      - test-attendee-api
+
+  # 2b. Build staff-app image
+  - name: 'gcr.io/cloud-builders/docker'
+    id: build-staff-app
+    args:
+      - build
+      - -t
+      - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/staff-app:${SHORT_SHA}'
+      - -t
+      - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/staff-app:latest'
+      - apps/staff-app
+    waitFor:
+      - test-staff-app
+
+  # 2c. Build ops-dashboard image
+  - name: 'gcr.io/cloud-builders/docker'
+    id: build-ops-dashboard
+    args:
+      - build
+      - -t
+      - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/ops-dashboard:${SHORT_SHA}'
+      - -t
+      - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/ops-dashboard:latest'
+      - apps/ops-dashboard
+    waitFor:
+      - test-ops-dashboard
+
+  # 2d. Build attendee-api image
+  - name: 'gcr.io/cloud-builders/docker'
+    id: build-attendee-api
+    args:
+      - build
+      - -t
+      - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/attendee-api:${SHORT_SHA}'
+      - -t
+      - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/attendee-api:latest'
+      - services/attendee-api
+    waitFor:
+      - test-attendee-api
+
+  # 2e. Build order-service image
+  - name: 'gcr.io/cloud-builders/docker'
+    id: build-order-service
+    args:
+      - build
+      - -t
+      - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/order-service:${SHORT_SHA}'
+      - -t
+      - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/order-service:latest'
+      - services/order-service
+    waitFor:
+      - test-order-service
+
+  # 2f. Build queue-service image
+  - name: 'gcr.io/cloud-builders/docker'
+    id: build-queue-service
+    args:
+      - build
+      - -t
+      - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/queue-service:${SHORT_SHA}'
+      - -t
+      - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/queue-service:latest'
+      - services/queue-service
+    waitFor:
+      - test-queue-service
+
+  # 2g. Build staff-service image
+  - name: 'gcr.io/cloud-builders/docker'
+    id: build-staff-service
+    args:
+      - build
+      - -t
+      - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/staff-service:${SHORT_SHA}'
+      - -t
+      - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/staff-service:latest'
+      - services/staff-service
+    waitFor:
+      - test-staff-service
+
+  # 2h. Build crowd-service image (Python/FastAPI)
+  - name: 'gcr.io/cloud-builders/docker'
+    id: build-crowd-service
+    args:
+      - build
+      - -t
+      - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/crowd-service:${SHORT_SHA}'
+      - -t
+      - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/crowd-service:latest'
+      - services/crowd-service
+    waitFor: ['-']
+
+  # 2i. Build notification-service image
+  - name: 'gcr.io/cloud-builders/docker'
+    id: build-notification-service
+    args:
+      - build
+      - -t
+      - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/notification-service:${SHORT_SHA}'
+      - -t
+      - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/notification-service:latest'
+      - services/notification-service
+    waitFor: ['-']
+
+  # 2j. Build analytics-service image (Python)
+  - name: 'gcr.io/cloud-builders/docker'
+    id: build-analytics-service
+    args:
+      - build
+      - -t
+      - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/analytics-service:${SHORT_SHA}'
+      - -t
+      - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/analytics-service:latest'
+      - services/analytics-service
+    waitFor: ['-']
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # PHASE 3: PUSH all images to Artifact Registry
+  # ─────────────────────────────────────────────────────────────────────────────
+
+  - name: 'gcr.io/cloud-builders/docker'
+    id: push-all
+    entrypoint: sh
+    args:
+      - -c
+      - |
+        for svc in attendee-app staff-app ops-dashboard attendee-api order-service queue-service staff-service crowd-service notification-service analytics-service; do
+          docker push ${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/$svc:${SHORT_SHA}
+          docker push ${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/$svc:latest
+        done
+    waitFor:
+      - build-attendee-app
+      - build-staff-app
+      - build-ops-dashboard
+      - build-attendee-api
+      - build-order-service
+      - build-queue-service
+      - build-staff-service
+      - build-crowd-service
+      - build-notification-service
+      - build-analytics-service
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # PHASE 4: DEPLOY to Cloud Run
+  # ─────────────────────────────────────────────────────────────────────────────
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: deploy-all
+    entrypoint: sh
+    args:
+      - -c
+      - |
+        for svc in attendee-app staff-app ops-dashboard attendee-api order-service queue-service staff-service crowd-service notification-service analytics-service; do
+          gcloud run deploy $svc \
+            --image=${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/$svc:${SHORT_SHA} \
+            --region=${_REGION} \
+            --platform=managed \
+            --quiet
+        done
+    waitFor:
+      - push-all
+
+images:
+  - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/attendee-app:${SHORT_SHA}'
+  - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/staff-app:${SHORT_SHA}'
+  - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/ops-dashboard:${SHORT_SHA}'
+  - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/attendee-api:${SHORT_SHA}'
+  - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/order-service:${SHORT_SHA}'
+  - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/queue-service:${SHORT_SHA}'
+  - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/staff-service:${SHORT_SHA}'
+  - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/crowd-service:${SHORT_SHA}'
+  - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/notification-service:${SHORT_SHA}'
+  - '${_REGION}-docker.pkg.dev/${_PROJECT_ID}/${_REPO}/analytics-service:${SHORT_SHA}'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8
